@@ -6,9 +6,13 @@ let renderer;
 let scene;
 let mesh;
 const voxel_names = Object.keys(vp); //vp is the variable that returns from the raw Loreta file
-lorData = freqData(lor); // returns arrays of data for each frequency. ToDo: average these for delta, theta, etc.
-const globalMin = Math.min(...lor);
-const globalMax = Math.max(...lor);
+let lorData;
+let globalMin;
+let globalMax;
+
+// lorData = freqData(lor); // returns arrays of data for each frequency. ToDo: average these for delta, theta, etc.
+// const globalMin = Math.min(...lor);
+// const globalMax = Math.max(...lor);
 
 // render properties, can be updated with the gui controls
 let properties = {
@@ -18,9 +22,9 @@ let properties = {
     , opacityDev: .8
     , opacityRange: [0,1]
     , lowThreshold: 0
-    , lowThresholdRange: [0, 1.5]
-    , globalMin: Math.min(...lor)
-    , globalMax: Math.max(...lor)
+    , lowThresholdRange: [0, 0.5]
+    //, globalMin: Math.min(...lor)
+    //, globalMax: Math.max(...lor)
     , freqMin: 0
     , freqMax: 0
     , smoothing: 1
@@ -68,6 +72,11 @@ let side = {
   , Right: true
 };
 
+let dataset = {
+  options: ['methylphenidate effect', 'venlafaxine effect', 'lithium effect', 'subject 01', 'subject 02', 'subject 03']
+  , selection: null
+}
+
 function init() {
     container = document.querySelector( '#scene-container' );
     scene = new THREE.Scene();
@@ -77,8 +86,8 @@ function init() {
     createLights();
     //createMeshes();
     createMesh();
-    colorVoxels(properties); // pass the entire object here.  function updates local min/max
-    setOpacities(properties);
+    //colorVoxels(properties); // pass the entire object here.  function updates local min/max
+    //setOpacities(properties);
 
     createRenderer();
     
@@ -88,6 +97,20 @@ function init() {
     } );
   }
   
+  function selectData(selection) {
+    //'methylphenidate effect', 'venlafaxine effect', 'lithium effect', 'subject 01', 'subject 02', 'subject 03'
+    if (selection === 'methylphenidate effect') {lor = methylphenidate_z;}
+    else if (selection === 'lithium effect') {lor = lithium_z;}
+    else if (selection === 'venlafaxine effect') {lor = venlafaxine_z;}
+    else if (selection === 'subject 01') {lor = subject01_nomeds_z;}
+    else if (selection === 'subject 02') {lor = subject02_nomeds_z;}
+    else if (selection === 'subject 03') {lor = subject03_nomeds_z;}
+
+    lorData = freqData(lor); // returns arrays of data for each frequency. ToDo: average these for delta, theta, etc.
+    globalMin = Math.min(...lor);
+    globalMax = Math.max(...lor);
+  }
+
   function createCamera() {
     camera = new THREE.PerspectiveCamera(
       35, // FOV
@@ -164,6 +187,7 @@ function init() {
   }
 
   function colorVoxels(props) {
+    if(dataset.selection === null) {return;} //no dataset selected yet
     // frequency is an integer from 1 to 30
     let frequency = props.frequency;
     let thisFreqArray = lorData[frequency];
@@ -197,12 +221,16 @@ function init() {
       // opacityDev is the opacity for deviations form normal
       // opacityNorm is the opacity for normal.  These are adressable in the GUI
       // as a way to help regions of interest stand out.
+      if(dataset.selection === null) {return;} //no dataset selected yet
       let maxDev = Math.max(Math.abs(props.freqMin), Math.abs(props.freqMax));
       for (let i = 0; i < scene.children.length; i++) {
         if(scene.children[i].userData.type === 'voxel') {
                 thisAnatomy = scene.children[i].userData.anat;
                 thisVisibility = anatomy[thisAnatomy];
-                if(thisVisibility === false) {
+                if(dataset.selection === null) {
+                  thisOpacity = 0;  // no selection of dataset has been made yet
+                }
+                else if(thisVisibility === false) {
                     thisOpacity = 0;
                 }
                 else if(side[scene.children[i].userData.side] === false) {
@@ -349,6 +377,13 @@ window.addEventListener( 'resize', onWindowResize );
 function createGUI(props) { 
   let gui = new ControlKit();
   gui.addPanel({label: 'Control Options', width: 350, ratio: 10})
+    .addSelect(dataset, 'options', {onChange: function (index) {
+      dataset.selection = dataset.options[index];
+      selectData(dataset.selection);
+      colorVoxels(properties);
+      setOpacities(properties);
+    }
+    })
     .addSlider(props, 'frequency', 'frequencyRange', {
         label: 'Frequency'
         , step: 1

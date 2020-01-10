@@ -377,7 +377,7 @@ window.addEventListener( 'resize', onWindowResize );
 function createGUI(props) { 
   let gui = new ControlKit();
   gui.addPanel({label: 'Control Options', width: 350, ratio: 10})
-    .addSelect(dataset, 'options', {onChange: function (index) {
+    .addSelect(dataset, 'options', {label: 'Select dataset', onChange: function (index) {
       dataset.selection = dataset.options[index];
       selectData(dataset.selection);
       colorVoxels(properties);
